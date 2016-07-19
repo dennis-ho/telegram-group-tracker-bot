@@ -11,8 +11,11 @@ TOKEN = '' # TODO - Set your Telegram API key here
 MSG_RE = '(?P<emoter>\w+)\s+%s\s+(?P<target>.+)'
 RE_FLAGS = re.I
 ENTRIES_FILE_PATH = 'entries.dat'
-GET_COMMAND = 'get'
-RANDOM_COMMAND = 'random'
+
+GET_COMMAND     = 'get'
+RANDOM_COMMAND  = 'random'
+COUNT_COMMAND   = 'count'
+
 VERBS = [
     'loves',
     'hates'
@@ -43,6 +46,9 @@ class DirectedEmotion:
     
     def __hash__(self):
         return hash(self.emoter.lower(), self.verb.lower(), self.target.lower(), self.chat_id.lower())
+    
+    def is_owned_by(self, emoter):
+        return self.emoter.lower() == emoter.lower()
 
 def save_if_type(bot, verb, update):
     match = re.match(MSG_RE % verb, update.message.text, RE_FLAGS)
@@ -70,7 +76,7 @@ def send_list(bot, verb, chat_id, filter=None):
     global entries
     for entry in [entry for  entry in entries[verb] 
                         if   entry.chat_id == chat_id 
-                        and (filter is None or entry.emoter.lower() == filter.lower())]:
+                        and (filter is None or entry.is_owned_by(filter))]:
         lines.append(str(entry))
     if lines:
         send_msg(bot, chat_id, '\n'.join(lines))
@@ -98,14 +104,14 @@ def random_cmd_handler(bot, update):
     except:
         pass
     
-def count(bot, update, args):
+def count_cmd_handler(bot, update, args):
     global entries
-    emoter = args[0]
+    emoter = args[0] if len(args) >= 1 else None
     verbs = [args[1]] if len(args) >= 2 else list(entries.keys())
     count = 0
     for verb in verbs:
-        count = count + sum([1 for entry in entries[verb] if entry.is_owned_by(emoter)])
-    send_msg(chat_id, str('{0} {1} entries: {2}'.format(emoter, '/'.join(verbs), count)))
+        count = count + sum([1 for entry in entries[verb] if emoter is None or entry.is_owned_by(emoter)])
+    send_msg(bot, update.message.chat_id, '{0} {1} entries: {2}'.format('All' if emoter is None else emoter, '/'.join(verbs), count))
 
 def main():
     global entries
@@ -117,6 +123,7 @@ def main():
     dp.addHandler(MessageHandler([Filters.text],    handle_msg),                                    group=0)
     dp.addHandler(CommandHandler(GET_COMMAND,       get_cmd_handler,            pass_args=True),    group=1)
     dp.addHandler(CommandHandler(RANDOM_COMMAND,    random_cmd_handler),                            group=1)
+    dp.addHandler(CommandHandler(COUNT_COMMAND,     count_cmd_handler,          pass_args=True),    group=1)
 
     updater.start_polling()
     updater.idle()
