@@ -4,12 +4,15 @@ from telegram.ext import Updater, MessageHandler, CommandHandler, Filters
 import cPickle as pickle
 import re
 import os.path
+import random
+import traceback
 
 TOKEN = '' # TODO - Set your Telegram API key here
 MSG_RE = '(?P<emoter>\w+)\s+%s\s+(?P<target>.+)'
 RE_FLAGS = re.I
 ENTRIES_FILE_PATH = 'entries.dat'
 GET_COMMAND = 'get'
+RANDOM_COMMAND = 'random'
 VERBS = [
     'loves',
     'hates'
@@ -28,13 +31,16 @@ class DirectedEmotion:
         self.verb = verb
         self.target = target
         self.chat_id = chat_id
-        
+    
+    def __str__(self):
+        return '{0} {1} {2}'.format(self.emoter, self.verb, self.target)
+    
     def __eq__(self, other):
         return self.emoter.lower() == other.emoter.lower() \
            and self.verb.lower() == other.verb.lower() \
            and self.target.lower() == other.target.lower() \
            and self.chat_id.lower() == other.chat_id.lower()
-           
+    
     def __hash__(self):
         return hash(self.emoter.lower(), self.verb.lower(), self.target.lower(), self.chat_id.lower())
 
@@ -56,17 +62,20 @@ def handle_msg(bot, update):
     for verb in VERBS:
         save_if_type(bot, verb, update)
 
+def send_msg(bot, chat_id, str):
+    bot.sendMessage(chat_id, text=str)
+
 def send_list(bot, verb, chat_id, filter=None):
     lines = []
     global entries
     for entry in [entry for  entry in entries[verb] 
                         if   entry.chat_id == chat_id 
                         and (filter is None or entry.emoter.lower() == filter.lower())]:
-        lines.append('{0} {1} {2}'.format(entry.emoter, verb, entry.target))
+        lines.append(str(entry))
     if lines:
-        bot.sendMessage(chat_id, text='\n'.join(lines))
+        send_msg(bot, chat_id, '\n'.join(lines))
 
-def get(bot, update, args):
+def get_cmd_handler(bot, update, args):
     try:
         send_list(bot, args[0], update.message.chat_id, args[1] if len(args) >= 2 else None)
     except:
@@ -80,6 +89,23 @@ def load_file(path):
             return pickle.load(fp)
     except:
         pass
+        
+def random_cmd_handler(bot, update):
+    try:
+        global entries
+        entry = random.choice(entries[random.choice(list(entries.keys()))])
+        send_msg(bot, update.message.chat_id, str(entry))
+    except:
+        pass
+    
+def count(bot, update, args):
+    global entries
+    emoter = args[0]
+    verbs = [args[1]] if len(args) >= 2 else list(entries.keys())
+    count = 0
+    for verb in verbs:
+        count = count + sum([1 for entry in entries[verb] if entry.is_owned_by(emoter)])
+    send_msg(chat_id, str('{0} {1} entries: {2}'.format(emoter, '/'.join(verbs), count)))
 
 def main():
     global entries
@@ -88,8 +114,9 @@ def main():
     updater = Updater(TOKEN)
     
     dp = updater.dispatcher
-    dp.addHandler(MessageHandler([Filters.text], handle_msg), group=0)
-    dp.addHandler(CommandHandler(GET_COMMAND, get, pass_args=True), group=1)
+    dp.addHandler(MessageHandler([Filters.text],    handle_msg),                                    group=0)
+    dp.addHandler(CommandHandler(GET_COMMAND,       get_cmd_handler,            pass_args=True),    group=1)
+    dp.addHandler(CommandHandler(RANDOM_COMMAND,    random_cmd_handler),                            group=1)
 
     updater.start_polling()
     updater.idle()
