@@ -6,15 +6,17 @@ import re
 import os.path
 import random
 import traceback
+import google_api
 
 TOKEN = '' # TODO - Set your Telegram API key here
 MSG_RE = '(?P<emoter>\w+)\s+%s\s+(?P<target>.+)'
 RE_FLAGS = re.I
 ENTRIES_FILE_PATH = 'entries.dat'
 
-GET_COMMAND     = 'get'
-RANDOM_COMMAND  = 'random'
-COUNT_COMMAND   = 'count'
+GET_COMMAND         = 'get'
+RANDOM_COMMAND      = 'random'
+COUNT_COMMAND       = 'count'
+PIC_REQUEST_TRIGGER = 'pic'
 
 VERBS = [
     'loves',
@@ -22,6 +24,7 @@ VERBS = [
 ]
 
 entries = None
+last_msg = None
 
 class DirectedEmotion:
     emoter = None
@@ -63,10 +66,37 @@ def save_if_type(bot, verb, update):
     if directed_emotion not in entries[verb]:
         entries[verb].append(directed_emotion)
         pickle.dump(entries, open(ENTRIES_FILE_PATH, 'wb'))
-    
-def handle_msg(bot, update):
+
+def handle_verbs(bot, update):
     for verb in VERBS:
         save_if_type(bot, verb, update)
+        
+def handle_pic_req(bot, update):
+    try:
+        global last_msg
+        
+        if update.message.text.lower() == PIC_REQUEST:
+            pic_url = google_api.GoogleApi().search_img(last_msg)
+            send_msg(bot, update.message.chat_id, pic_url)
+        else:
+            last_msg = update.message.text
+    except:
+        pass
+
+def handle_msg(bot, update):
+    handle_verbs(bot, update)    
+    handle_pic_req(bot, update)
+
+def handle_pic_req(bot, update, args):
+    global last_msg
+    
+    if update.message.text.lower() == PIC_REQUEST_TRIGGER.lower():
+        if last_msg is None:
+            return
+        pic_url = google_api.GoogleApi().search_img(last_msg)
+        send_msg(bot, update.message.chat_id, pic_url)
+    else:
+        last_msg = update.message.text
 
 def send_msg(bot, chat_id, str):
     bot.sendMessage(chat_id, text=str)
