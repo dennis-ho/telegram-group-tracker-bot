@@ -70,22 +70,19 @@ def save_if_type(bot, verb, update):
 def handle_verbs(bot, update):
     for verb in VERBS:
         save_if_type(bot, verb, update)
-        
+
 def handle_pic_req(bot, update):
-    try:
-        global last_msg
-        
-        if update.message.text.lower() == PIC_REQUEST:
-            pic_url = google_api.GoogleApi().search_img(last_msg)
-            send_msg(bot, update.message.chat_id, pic_url)
-        else:
-            last_msg = update.message.text
-    except:
-        pass
+    global last_msg
+    
+    if update.message.text.lower() == PIC_REQUEST:
+        pic_url = google_api.GoogleApi().search_img(last_msg)
+        send_msg(bot, update.message.chat_id, pic_url)
+    else:
+        last_msg = update.message.text
 
 def handle_msg(bot, update):
-    handle_verbs(bot, update)    
-    handle_pic_req(bot, update)
+    try_lambda(handle_verbs)(bot, update)
+    try_lambda(handle_pic_req)(bot, update)
 
 def handle_pic_req(bot, update, args):
     global last_msg
@@ -112,10 +109,7 @@ def send_list(bot, verb, chat_id, filter=None):
         send_msg(bot, chat_id, '\n'.join(lines))
 
 def get_cmd_handler(bot, update, args):
-    try:
-        send_list(bot, args[0], update.message.chat_id, args[1] if len(args) >= 2 else None)
-    except:
-        pass
+    send_list(bot, args[0], update.message.chat_id, args[1] if len(args) >= 2 else None)
 
 def load_file(path):
     if not os.path.isfile(path):
@@ -127,12 +121,9 @@ def load_file(path):
         pass
         
 def random_cmd_handler(bot, update):
-    try:
-        global entries
-        entry = random.choice(entries[random.choice(list(entries.keys()))])
-        send_msg(bot, update.message.chat_id, str(entry))
-    except:
-        pass
+    global entries
+    entry = random.choice(entries[random.choice(list(entries.keys()))])
+    send_msg(bot, update.message.chat_id, str(entry))
     
 def count_cmd_handler(bot, update, args):
     global entries
@@ -143,6 +134,24 @@ def count_cmd_handler(bot, update, args):
         count = count + sum([1 for entry in entries[verb] if emoter is None or entry.is_owned_by(emoter)])
     send_msg(bot, update.message.chat_id, '{0} {1} entries: {2}'.format('All' if emoter is None else emoter, '/'.join(verbs), count))
 
+def try_handler(handler, bot, update):
+    try:
+        handler(bot, update)
+    except:
+        traceback.print_exc()
+      
+def try_handler_args(handler, bot, update, args):
+    try:
+        handler(bot, update, args)
+    except:
+        traceback.print_exc()
+
+def try_lambda(handler):
+    return lambda bot, update: try_handler(handler, bot, update)
+    
+def try_lambda_args(handler):
+    return lambda bot, update, args: try_handler_args(handler, bot, update, args)
+
 def main():
     global entries
     entries = load_file(ENTRIES_FILE_PATH)
@@ -150,10 +159,10 @@ def main():
     updater = Updater(TOKEN)
     
     dp = updater.dispatcher
-    dp.addHandler(MessageHandler([Filters.text],    handle_msg),                                    group=0)
-    dp.addHandler(CommandHandler(GET_COMMAND,       get_cmd_handler,            pass_args=True),    group=1)
-    dp.addHandler(CommandHandler(RANDOM_COMMAND,    random_cmd_handler),                            group=1)
-    dp.addHandler(CommandHandler(COUNT_COMMAND,     count_cmd_handler,          pass_args=True),    group=1)
+    dp.addHandler(MessageHandler([Filters.text],    try_lambda      (handle_msg)),                                    group=0)
+    dp.addHandler(CommandHandler(GET_COMMAND,       try_lambda_args (get_cmd_handler),            pass_args=True),    group=1)
+    dp.addHandler(CommandHandler(RANDOM_COMMAND,    try_lambda      (random_cmd_handler)),                            group=1)
+    dp.addHandler(CommandHandler(COUNT_COMMAND,     try_lambda_args (count_cmd_handler),          pass_args=True),    group=1)
 
     updater.start_polling()
     updater.idle()
