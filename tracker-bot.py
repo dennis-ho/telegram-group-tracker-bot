@@ -71,20 +71,11 @@ def handle_verbs(bot, update):
     for verb in VERBS:
         save_if_type(bot, verb, update)
 
-def handle_pic_req(bot, update):
-    global last_msg
-    
-    if update.message.text.lower() == PIC_REQUEST:
-        pic_url = google_api.GoogleApi().search_img(last_msg)
-        send_msg(bot, update.message.chat_id, pic_url)
-    else:
-        last_msg = update.message.text
-
 def handle_msg(bot, update):
     try_lambda(handle_verbs)(bot, update)
     try_lambda(handle_pic_req)(bot, update)
 
-def handle_pic_req(bot, update, args):
+def handle_pic_req(bot, update):
     global last_msg
     
     if update.message.text.lower() == PIC_REQUEST_TRIGGER.lower():
