@@ -3,12 +3,12 @@
 from telegram.ext import Updater, MessageHandler, CommandHandler, Filters
 import cPickle as pickle
 import re
-import os.path
+import os
 import random
 import traceback
 import google_api
 
-TOKEN = '' # TODO - Set your Telegram API key here
+TOKEN = os.environ['HATEBOT_TELEGRAM_KEY']  # TODO - Set your Telegram API key here
 MSG_RE = '(?P<emoter>\w+)\s+%s\s+(?P<target>.+)'
 RE_FLAGS = re.I
 ENTRIES_FILE_PATH = 'entries.dat'

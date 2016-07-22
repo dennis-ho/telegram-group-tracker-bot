@@ -1,13 +1,14 @@
 import urllib2
 import json
+import os
 import traceback
 from contextlib import closing
 
 class GoogleApi:
     IMAGE_SEARCH_URL = 'https://www.googleapis.com/customsearch/v1?key={0}&cx={1}&q={2}&searchType=image&fileType=jpg&imgSize=large&alt=json'
 
-    API_KEY = '' # TODO - Set your API key here
-    CSE_ID = '' # TODO - Set your CSE_ID here
+    API_KEY = os.environ['HATEBOT_GOOGLE_KEY'] # TODO - Set your API key here
+    CSE_ID = os.environ['HATEBOT_CSE_ID'] # TODO - Set your CSE_ID here
 
     def search_img(self, search_term):
         url = self.IMAGE_SEARCH_URL.format(self.API_KEY, self.CSE_ID, urllib2.quote(search_term))
