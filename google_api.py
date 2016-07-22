@@ -13,7 +13,6 @@ class GoogleApi:
         url = self.IMAGE_SEARCH_URL.format(self.API_KEY, self.CSE_ID, urllib2.quote(search_term))
         with closing(urllib2.urlopen(url)) as resp:
             html = resp.read()
-            print html
             img_json = json.loads(html)
             img_url = img_json['items'][0]['link']
             return img_url
